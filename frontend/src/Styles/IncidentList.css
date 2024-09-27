@@ -1,0 +1,52 @@
+.incident-list {
+    max-width: 900px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.incident-list table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.incident-list table th,
+.incident-list table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.incident-list table th {
+    background-color: #f2f2f2;
+    color: #333;
+}
+
+.incident-list table tr:hover {
+    background-color: #f1f1f1;
+}
+
+.filters {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.filters input,
+.filters select {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.filters input {
+    width: 60%;
+}
+
+.filters select {
+    width: 35%;
+}
