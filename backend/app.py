@@ -2,12 +2,17 @@ from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+import os
+from dotenv import load_dotenv  # Load environment variables from .env file
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for cross-origin requests
 
-#JWT setup
-app.config['JWT_SECRET_KEY'] = 'your_secret_key_here'
+# JWT setup: load secret key from environment variables
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY') or '0b27eccaeb11a9378fcab96f9f617417c3c749f278adf97b8cc2337c7d8ef2c4'
 jwt = JWTManager(app)
 
 # Simple hardcoded user for testing
@@ -33,9 +38,6 @@ def login():
     access_token = create_access_token(identity=username)
     return jsonify(access_token=access_token), 200
 
-# Initialize the database
-db = SQLAlchemy(app)
-
 # Define the Incident model (this corresponds to the incident table)
 class Incident(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -50,10 +52,11 @@ with app.app_context():
 
 # Endpoint to handle form submissions
 @app.route('/api/submit', methods=['POST'])
+@jwt_required()  # Require JWT authentication
 def submit_incident():
     data = request.json
     print(f"Received data: {data}")
-    
+
     # Create a new Incident object
     new_incident = Incident(
         name=data['name'],
@@ -61,28 +64,31 @@ def submit_incident():
         description=data['description'],
         category=data['category']
     )
-    
+
     # Add the incident to the session and commit it to the database
     db.session.add(new_incident)
     db.session.commit()
-    
+
     return jsonify({"message": "Incident submitted successfully!", "data": data}), 200
 
-# Endpoint to retieve all Invidents stored
+# Endpoint to retrieve all incidents (JWT required)
 @app.route('/api/incidents', methods=['GET'])
+@jwt_required()  # Require JWT authentication
 def get_incidents():
+    current_user = get_jwt_identity()  # Get current logged-in user identity
+    print(request.headers)  # Debugging: check if Authorization header is being sent
+    
     query = Incident.query
     name = request.args.get('name')
     category = request.args.get('category')
 
-    if name: 
+    if name:
         query = query.filter(Incident.name.ilike(f'%{name}%'))
 
     if category:
         query = query.filter_by(category=category)
 
-
-    incidents = Incident.query.all()
+    incidents = query.all()  # Execute the query with filters applied
     result = [
         {
             "id": incident.id,
@@ -90,7 +96,7 @@ def get_incidents():
             "email": incident.email,
             "description": incident.description,
             "category": incident.category
-        } for incident in incidents 
+        } for incident in incidents
     ]
     return jsonify(result), 200
 
