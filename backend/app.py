@@ -16,11 +16,14 @@ CORS(app)  # Enable CORS for cross-origin requests
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY') or '0b27eccaeb11a9378fcab96f9f617417c3c749f278adf97b8cc2337c7d8ef2c4'
 jwt = JWTManager(app)
 
+# Get the database URL from the environment variable
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+
 # Simple hardcoded user for testing
 users = {"admin": "password123"}  # Username: admin, Password: password123
 
 # PostgreSQL connection settings
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://itsmuser:Traveller1865!!@localhost:5432/itsmtool'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://itsmuser:Traveller1865!!@localhost:5432/itsmtool'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
