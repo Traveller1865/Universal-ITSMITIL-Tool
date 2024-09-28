@@ -1,0 +1,26 @@
+<div class="login-container">
+    <!-- Logo -->
+    <div class="login-logo">
+        <img src="your-logo-url.png" alt="Your Logo" />
+    </div>
+
+    <!-- Login Form -->
+    <form onSubmit={handleLoginSubmit}>
+        <input type="email" class="login-input" placeholder="Email" required />
+        <input type="password" class="login-input" placeholder="Password" required />
+        
+        <!-- Stay Signed In -->
+        <div>
+            <input type="checkbox" id="stay-signed-in" />
+            <label for="stay-signed-in">Stay signed in</label>
+        </div>
+        
+        <!-- Login Button -->
+        <button type="submit" class="login-button">Sign In</button>
+    </form>
+
+    <!-- Extras: Create Account and Forgot Password -->
+    <div class="login-extras">
+        <a href="#">Create an account</a> | <a href="#">Forgot password?</a>
+    </div>
+</div>

@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv  # Load environment variables from .env file
+from datetime import datetime, timedelta, timezone
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,6 +46,32 @@ class Incident(db.Model):
     email = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(500), nullable=False)
     category = db.Column(db.String(50), nullable=False)
+    priority = db.Column(db.String(10), nullable=False)  # P1, P2, P3, P4
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    acknowledged_at = db.Column(db.DateTime, nullable=True)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    # Get SLA times based on priority
+    def get_sla_times(self):
+        priority_slas = {
+            "P1": {"acknowledgment": 15, "resolution": 240},
+            "P2": {"acknowledgment": 30, "resolution": 480},
+            "P3": {"acknowledgment": 60, "resolution": 1440},
+            "P4": {"acknowledgment": 120, "resolution": 4320},
+        }
+        return priority_slas.get(self.priority, {"acknowledgment": 60, "resolution": 1440})
+
+    # Check if nearing acknowledgment SLA
+    def is_nearing_acknowledgment_sla(self):
+        sla_times = self.get_sla_times()
+        acknowledgment_deadline = self.submitted_at + timedelta(minutes=sla_times["acknowledgment"])
+        return datetime.utcnow() > acknowledgment_deadline - timedelta(minutes=10)  # 10 min warning
+
+    # Check if nearing resolution SLA
+    def is_nearing_resolution_sla(self):
+        sla_times = self.get_sla_times()
+        resolution_deadline = self.submitted_at + timedelta(minutes=sla_times["resolution"])
+        return datetime.utcnow() > resolution_deadline - timedelta(minutes=30)  # 30 min warning
 
 # Create the database and tables
 with app.app_context():
@@ -62,7 +89,9 @@ def submit_incident():
         name=data['name'],
         email=data['email'],
         description=data['description'],
-        category=data['category']
+        category=data['category'],
+        priority=data['priority'],  # P1, P2, P3, P4
+        submitted_at=datetime.now(timezone.utc)  # Use timezone-aware datetime
     )
 
     # Add the incident to the session and commit it to the database
@@ -77,7 +106,7 @@ def submit_incident():
 def get_incidents():
     current_user = get_jwt_identity()  # Get current logged-in user identity
     print(request.headers)  # Debugging: check if Authorization header is being sent
-    
+
     query = Incident.query
     name = request.args.get('name')
     category = request.args.get('category')
@@ -95,10 +124,37 @@ def get_incidents():
             "name": incident.name,
             "email": incident.email,
             "description": incident.description,
-            "category": incident.category
+            "category": incident.category,
+            "priority": incident.priority,
+            "submitted_at": incident.submitted_at,
+            "acknowledged_at": incident.acknowledged_at,
+            "resolved_at": incident.resolved_at
         } for incident in incidents
     ]
     return jsonify(result), 200
+
+# SLA monitoring endpoint
+@app.route('/api/incidents/sla-monitor', methods=['GET'])
+@jwt_required()
+def monitor_slas():
+    incidents = Incident.query.all()
+    sla_violations = []
+
+    for incident in incidents:
+        nearing_ack = incident.is_nearing_acknowledgment_sla()
+        nearing_res = incident.is_nearing_resolution_sla()
+
+        if nearing_ack or nearing_res:
+            sla_violations.append({
+                "id": incident.id,
+                "name": incident.name,
+                "priority": incident.priority,
+                "submitted_at": incident.submitted_at,
+                "nearing_acknowledgment": nearing_ack,
+                "nearing_resolution": nearing_res
+            })
+
+    return jsonify(sla_violations), 200
 
 if __name__ == '__main__':
     app.run(debug=True)

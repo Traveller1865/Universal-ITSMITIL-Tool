@@ -1,0 +1,31 @@
+<!-- Header Section with Logout -->
+<div class="header">
+    <div class="header-logo">
+        <img src="your-logo-url.png" alt="Logo" />
+    </div>
+    <button class="header-logout" onClick={handleLogout}>Logout</button>
+</div>
+
+<!-- Form Container -->
+<div class="form-container">
+    <h2>Report an IT Incident</h2>
+    <form onSubmit={handleSubmit}>
+        <label>Name:</label>
+        <input type="text" name="name" required />
+
+        <label>Email:</label>
+        <input type="email" name="email" required />
+
+        <label>Description:</label>
+        <textarea name="description" required></textarea>
+
+        <label>Category:</label>
+        <select name="category">
+            <option value="Hardware">Hardware</option>
+            <option value="Software">Software</option>
+            <option value="Network">Network</option>
+        </select>
+
+        <button type="submit">Submit</button>
+    </form>
+</div>

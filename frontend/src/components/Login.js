@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../Styles/Login.css';
 
 const Login = ({ setToken }) => {
     const [username, setUsername] = useState('');
@@ -25,13 +26,12 @@ const Login = ({ setToken }) => {
     };
 
     return (
-        <div className="login-form">
-            <h2>Login</h2>
-            {error && <p className="error">{error}</p>}
-            <form onSubmit={handleSubmit}>
+        <div className="login-container">
+            <div className="login-logo">Your Logo</div>
+            <form className="login-form" onSubmit={handleSubmit}>
                 <input
                     type="text"
-                    placeholder="Username"
+                    placeholder="Email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
@@ -43,7 +43,11 @@ const Login = ({ setToken }) => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                 />
-                <button type="submit">Login</button>
+                <div className="stay-signed-in">
+                    <input type="checkbox" id="stay-signed-in" />
+                    <label htmlFor="stay-signed-in">Stay signed in</label>
+                </div>
+                <button type="submit">Sign In</button>
             </form>
         </div>
     );

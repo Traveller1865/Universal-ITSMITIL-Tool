@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import '../Styles/IncidentList.css';
 
 const IncidentList = () => {
     const [incidents, setIncidents] = useState([]);
@@ -10,8 +11,15 @@ const IncidentList = () => {
     // Fetch incidents from the backend
     useEffect(() => {
         const fetchIncidents = async () => {
+            const token = localStorage.getItem('token'); // Get JWT token from local storage
+
             try {
-                const response = await fetch('http://localhost:5000/api/incidents');
+                const response = await fetch('http://localhost:5000/api/incidents', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}` // Include JWT token
+                    }
+                });
                 if (!response.ok) {
                     throw new Error('Failed to fetch incidents');
                 }
@@ -32,69 +40,69 @@ const IncidentList = () => {
             incident.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
             (categoryFilter === '' || incident.category === categoryFilter)
         );
-    })
+    });
 
     // Render the loading state
     if (loading) {
         return <p>Loading incidents...</p>;
     }
 
-   // Render the error state
-   if (error) {
-    return <p>{error}</p>;
-}
+    // Render the error state
+    if (error) {
+        return <p>{error}</p>;
+    }
 
-return (
-    <div className="incident-list">
-        <h2>Incident List</h2>
+    return (
+        <div className="incident-list">
+            <h2>Incident List</h2>
 
-        {/* Search and Filter */}
-        <div className="filters">
-            <input
-                type="text"
-                placeholder="Search by name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-                <option value="">All Categories</option>
-                <option value="Hardware">Hardware</option>
-                <option value="Software">Software</option>
-                <option value="Network">Network</option>
-            </select>
-        </div>
+            {/* Search and Filter */}
+            <div className="filters">
+                <input
+                    type="text"
+                    placeholder="Search by name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                    <option value="">All Categories</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Software">Software</option>
+                    <option value="Network">Network</option>
+                </select>
+            </div>
 
-        {filteredIncidents.length > 0 ? (
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Description</th>
-                        <th>Category</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredIncidents.map((incident) => (
-                        <tr key={incident.id}>
-                            <td>{incident.id}</td>
-                            <td>{incident.name}</td>
-                            <td>{incident.email}</td>
-                            <td>{incident.description}</td>
-                            <td>{incident.category}</td>
+            {filteredIncidents.length > 0 ? (
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Description</th>
+                            <th>Category</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        ) : (
-            <p>No incidents found.</p>
-        )}
-    </div>
-);
+                    </thead>
+                    <tbody>
+                        {filteredIncidents.map((incident) => (
+                            <tr key={incident.id}>
+                                <td>{incident.id}</td>
+                                <td>{incident.name}</td>
+                                <td>{incident.email}</td>
+                                <td>{incident.description}</td>
+                                <td>{incident.category}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            ) : (
+                <p>No incidents found.</p>
+            )}
+        </div>
+    );
 };
 
 export default IncidentList;

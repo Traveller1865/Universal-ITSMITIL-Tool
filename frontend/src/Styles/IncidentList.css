@@ -1,3 +1,4 @@
+/* Incident List Styling */
 .incident-list {
     max-width: 900px;
     margin: 50px auto;
@@ -5,8 +6,10 @@
     background-color: #f9f9f9;
     border-radius: 8px;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    font-family: Arial, sans-serif;
 }
 
+/* Table Styling */
 .incident-list table {
     width: 100%;
     border-collapse: collapse;
@@ -29,6 +32,7 @@
     background-color: #f1f1f1;
 }
 
+/* Filter Section Styling */
 .filters {
     display: flex;
     justify-content: space-between;

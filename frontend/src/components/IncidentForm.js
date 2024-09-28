@@ -7,6 +7,7 @@ const IncidentForm = () => {
         email: '',
         description: '',
         category: 'Hardware',
+        priority: 'P1',  // Default priority set to P1 (Critical)
     });
 
     const [responseMessage, setResponseMessage] = useState('');
@@ -23,12 +24,16 @@ const IncidentForm = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        const token = localStorage.getItem('token'); // Get JWT token from local storage
+
         setLoading(true);  // Show loading spinner during submission
         try {
             const response = await fetch('http://localhost:5000/api/submit', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // Include JWT token
                 },
                 body: JSON.stringify(formData),
             });
@@ -94,6 +99,21 @@ const IncidentForm = () => {
                         <option value="Hardware">Hardware</option>
                         <option value="Software">Software</option>
                         <option value="Network">Network</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Priority:</label>
+                    <select
+                        name="priority"
+                        value={formData.priority}
+                        onChange={handleChange}
+                        required
+                    >
+                        <option value="P1">P1 (Critical)</option>
+                        <option value="P2">P2 (High)</option>
+                        <option value="P3">P3 (Medium)</option>
+                        <option value="P4">P4 (Low)</option>
                     </select>
                 </div>
 
