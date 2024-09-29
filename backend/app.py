@@ -24,7 +24,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# User roles with sample data
+# Sample users with roles (to be updated with DB later)
 users = {
     "admin": {"password": "admin123", "roles": ["admin", "support_engineer", "manager", "analyst"]},
     "support": {"password": "support123", "roles": ["support_engineer"]},
@@ -35,7 +35,7 @@ users = {
     "external": {"password": "external123", "roles": ["guest", "external"]},
 }
 
-# Create login endpoint
+# Create user login endpoint
 @app.route('/login', methods=['POST'])
 def login():
     username = request.json.get('username')
@@ -46,7 +46,7 @@ def login():
         return jsonify({"msg": "Invalid username or password"}), 401
 
     role = users[username]["roles"]
-
+    
     # Set different token expiry times based on roles
     if "admin" in role:
         expires = timedelta(days=7)
@@ -120,9 +120,13 @@ class Incident(db.Model):
     description = db.Column(db.String(500), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     priority = db.Column(db.String(10), nullable=False)  # P1, P2, P3, P4
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    submitted_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     acknowledged_at = db.Column(db.DateTime, nullable=True)
     resolved_at = db.Column(db.DateTime, nullable=True)
+    escalation_level = db.Column(db.String(50), nullable=True)  # Optional escalation level
+    escalated_at = db.Column(db.DateTime, nullable=True)  # Timestamp for escalation
+    is_sla_breached = db.Column(db.Boolean, default=False)  # Track SLA breach
+    breached_at = db.Column(db.DateTime, nullable=True)  # Timestamp for SLA breach
 
     # Get SLA times based on priority
     def get_sla_times(self):
@@ -138,13 +142,39 @@ class Incident(db.Model):
     def is_nearing_acknowledgment_sla(self):
         sla_times = self.get_sla_times()
         acknowledgment_deadline = self.submitted_at + timedelta(minutes=sla_times["acknowledgment"])
-        return datetime.utcnow() > acknowledgment_deadline - timedelta(minutes=10)  # 10 min warning
+        return datetime.now(timezone.utc) > acknowledgment_deadline - timedelta(minutes=10)  # 10 min warning
 
     # Check if nearing resolution SLA
     def is_nearing_resolution_sla(self):
         sla_times = self.get_sla_times()
         resolution_deadline = self.submitted_at + timedelta(minutes=sla_times["resolution"])
-        return datetime.utcnow() > resolution_deadline - timedelta(minutes=30)  # 30 min warning
+        return datetime.now(timezone.utc) > resolution_deadline - timedelta(minutes=30)  # 30 min warning
+
+# Acknowledge Incident (for Support Engineers)
+@app.route('/api/incident/<int:incident_id>/acknowledge', methods=['PUT'])
+@jwt_required()
+@role_required(['support_engineer', 'admin'])
+def acknowledge_incident(incident_id):
+    incident = Incident.query.get_or_404(incident_id)
+    if incident.acknowledged_at is not None:
+        return jsonify({"msg": "Incident already acknowledged"}), 400
+    
+    incident.acknowledged_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"msg": "Incident acknowledged", "incident_id": incident_id}), 200
+
+# Resolve Incident (for Support Engineers)
+@app.route('/api/incident/<int:incident_id>/resolve', methods=['PUT'])
+@jwt_required()
+@role_required(['support_engineer', 'admin'])
+def resolve_incident(incident_id):
+    incident = Incident.query.get_or_404(incident_id)
+    if incident.resolved_at is not None:
+        return jsonify({"msg": "Incident already resolved"}), 400
+
+    incident.resolved_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"msg": "Incident resolved", "incident_id": incident_id}), 200
 
 # Create the database and tables
 with app.app_context():
@@ -208,6 +238,12 @@ def monitor_slas():
         nearing_ack = incident.is_nearing_acknowledgment_sla()
         nearing_res = incident.is_nearing_resolution_sla()
 
+        # Check if the incident has breached the SLA
+        if not incident.is_sla_breached and nearing_res:
+            incident.is_sla_breached = True
+            incident.breached_at = datetime.now(timezone.utc)
+            db.session.commit()
+
         if nearing_ack or nearing_res:
             sla_violations.append({
                 "id": incident.id,
@@ -215,7 +251,9 @@ def monitor_slas():
                 "priority": incident.priority,
                 "submitted_at": incident.submitted_at,
                 "nearing_acknowledgment": nearing_ack,
-                "nearing_resolution": nearing_res
+                "nearing_resolution": nearing_res,
+                "is_sla_breached": incident.is_sla_breached,
+                "breached_at": incident.breached_at,
             })
 
     return jsonify(sla_violations), 200
