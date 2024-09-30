@@ -6,6 +6,9 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv  # Load environment variables from .env file
 from datetime import datetime, timedelta, timezone
+import spacy
+from custom_entity_ruler import add_entity_ruler
+from nlp_categories import categorize_incident
 
 # Load environment variables from .env file
 load_dotenv()
@@ -23,6 +26,10 @@ app.config['SECRET_KEY'] = os.getenv('Flask_SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+# Load language model and add the custom entity ruler
+nlp = spacy.load("en_core_web_sm")
+nlp = add_entity_ruler(nlp)  # This will add the registered entity ruler
 
 # Sample users with roles (to be updated with DB later)
 users = {
@@ -227,6 +234,50 @@ def get_incidents():
     ]
     return jsonify(result), 200
 
+# Middleware to handle incident text processing before saving
+@app.before_request
+def process_incident_middleware():
+    if request.path == '/api/incidents/new' and request.method == 'POST':
+        description = request.json.get('description')
+        if description:
+            # Process with SpaCy
+            doc = nlp(description)
+            request.entities = [(ent.text, ent.label_) for ent in doc.ents]
+
+
+# Use SpaCy to process and categorize the incident description
+@app.route('/api/incidents/new', methods=['POST'])
+@jwt_required()
+@role_required(['service_desk_agent', 'support_engineer', 'admin'])  # Restrict access
+def submit_new_incident():
+    data = request.get_json()
+    description = data.get("description")
+    name = data.get("name")
+    email = data.get("email")
+    priority = data.get("priority")
+    
+    # Use the categorize_incident function from nlp_categories.py
+    category, entities = categorize_incident(description)
+    
+    # Create new incident with processed details
+    new_incident = Incident(
+        name=name,
+        email=email,
+        description=description,
+        category=category,
+        priority=priority,
+        submitted_at=datetime.now(timezone.utc)
+    )
+    db.session.add(new_incident)
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Incident submitted successfully",
+        "category": category,
+        "entities": entities
+    }), 200
+
+
 # SLA monitoring endpoint
 @app.route('/api/incidents/sla-monitor', methods=['GET'])
 @jwt_required()
@@ -258,5 +309,18 @@ def monitor_slas():
 
     return jsonify(sla_violations), 200
 
+# Create mock incidents for testing SpaCy NLP integration
+incidents = [
+    {"description": "Wi-Fi is down across campus."},
+    {"description": "Server is overloaded in the data center."},
+    {"description": "Password reset needed for student account."}
+]
+
+for incident in incidents:
+    doc = nlp(incident['description'])
+    print(f"Incident: {incident['description']}")
+    print([(ent.text, ent.label_) for ent in doc.ents])
+
+# Main entry point for running the app
 if __name__ == '__main__':
     app.run(debug=True)

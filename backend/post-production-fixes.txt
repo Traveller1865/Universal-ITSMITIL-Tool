@@ -1,0 +1,4 @@
+## Backend Fixes
+- **Issue:** 'Password reset' not recognized as SERVICE_REQUEST.
+- **Suggested Fix:** Adjust pattern in `custom_entity_ruler.py` to handle multi-word phrases.
+

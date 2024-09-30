@@ -1,0 +1,14 @@
+[
+    {"label": "TECH_ISSUE", "pattern": "Wi-Fi"},
+    {"label": "TECH_ISSUE", "pattern": "server"},
+    {"label": "TECH_ISSUE", "pattern": "email outage"},
+    {"label": "TECH_ISSUE", "pattern": "printer failure"},
+    {"label": "TECH_ISSUE", "pattern": "network down"},
+    {"label": "SERVICE_REQUEST", "pattern": "password reset"},
+    {"label": "SERVICE_REQUEST", "pattern": "new account creation"},
+    {"label": "SERVICE_REQUEST", "pattern": "software installation"},
+    {"label": "SERVICE_REQUEST", "pattern": "hardware upgrade"},
+    {"label": "USER_PROBLEM", "pattern": "login issue"},
+    {"label": "USER_PROBLEM", "pattern": "account locked"},
+    {"label": "USER_PROBLEM", "pattern": "cannot access files"}
+]
