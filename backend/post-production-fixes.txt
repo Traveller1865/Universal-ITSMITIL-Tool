@@ -1,4 +1,32 @@
 ## Backend Fixes
-- **Issue:** 'Password reset' not recognized as SERVICE_REQUEST.
-- **Suggested Fix:** Adjust pattern in `custom_entity_ruler.py` to handle multi-word phrases.
+
+Fixed Issues:
+Issue: 'Password reset' not recognized as SERVICE_REQUEST.
+
+Fix Applied: Adjusted the pattern in patterns.json to handle multi-word phrases correctly. The pattern is now:
+
+{"label": "SERVICE_REQUEST", "pattern": [{"LOWER": "password"}, {"LOWER": "reset"}]}
+Details: This adjustment has resolved the case-sensitivity issue, ensuring that PhraseMatcher properly identifies "password reset" incidents as SERVICE_REQUEST.
+Issue: Inconsistent recognition of 'network outage' and 'Wi-Fi' related issues.
+
+Fix Applied: Updated the patterns.json file to include additional granular network-related patterns such as 'network outage', 'network down', and 'Wi-Fi issues'. Example patterns include:
+
+{"label": "TECH_ISSUE", "pattern": [{"LOWER": "network"}, {"LOWER": "outage"}]},
+{"label": "TECH_ISSUE", "pattern": [{"LOWER": "wi"}, {"LOWER": "fi"}]},
+{"label": "TECH_ISSUE", "pattern": [{"LOWER": "wifi"}]}
+Details: This fix ensures broader coverage of network-related issues and improves the matching of various forms of "Wi-Fi" (with or without hyphen).
+Issue: No categorization of non-technical service requests like 'new account creation'.
+
+Fix Applied: Added new patterns in patterns.json for both technical and non-technical service requests. These patterns include:
+
+{"label": "SERVICE_REQUEST", "pattern": [{"LOWER": "new"}, {"LOWER": "account"}, {"LOWER": "creation"}]},
+{"label": "SERVICE_REQUEST", "pattern": [{"LOWER": "hardware"}, {"LOWER": "upgrade"}]}
+Details: These additions have addressed the issue of missing categorization for common non-technical service requests.
+Pending Issues for Future Updates:
+Issue: Ongoing difficulty in recognizing multi-word entities like 'Wi-Fi' and other semantic variations.
+
+Planned Fix: Continue refining multi-word pattern handling for terms with punctuation (e.g., 'Wi-Fi'). Add fallback patterns to handle variations like "wifi" (no hyphen). Testing against real data in post-production will help improve this.
+Recommendation: Add test data with real-world examples to ensure patterns cover diverse language usage. Continue leveraging the PhraseMatcher for more precise handling of multi-word entities, and monitor for new types of service requests that may emerge.
+
+General Advice: Regularly update the pattern set to reflect changes in user requests and technical terminology. Prioritize testing in a controlled environment before applying changes to the production system.
 

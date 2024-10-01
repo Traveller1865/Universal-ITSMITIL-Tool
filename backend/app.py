@@ -29,7 +29,22 @@ db = SQLAlchemy(app)
 
 # Load language model and add the custom entity ruler
 nlp = spacy.load("en_core_web_sm")
-nlp = add_entity_ruler(nlp)  # This will add the registered entity ruler
+
+# Debugging: Check if entity ruler is correctly added
+print("Adding custom entity ruler to pipeline...")
+
+# Ensure the custom entity ruler is added
+nlp = add_entity_ruler(nlp)
+
+# Confirm the pipeline components after adding the custom entity ruler
+print("Pipeline components after adding custom entity ruler:", nlp.pipe_names)
+
+# Example incidents for testing
+incidents = [
+    {"description": "Wi-Fi is down across campus."},
+    {"description": "Server is overloaded in the data center."},
+    {"description": "Password reset needed for student account."}
+]
 
 # Sample users with roles (to be updated with DB later)
 users = {
@@ -311,15 +326,25 @@ def monitor_slas():
 
 # Create mock incidents for testing SpaCy NLP integration
 incidents = [
-    {"description": "Wi-Fi is down across campus."},
-    {"description": "Server is overloaded in the data center."},
-    {"description": "Password reset needed for student account."}
+    {"description": "The server is down."},  # Single-word pattern test
+    {"description": "Wi-Fi is down across campus."}, # Multi-word pattern test
+    {"description": "Server is overloaded in the data center."},  # Multi-word pattern test
+    {"description": "Password reset needed for student account."}  # Multi-word pattern test
 ]
 
+# Process each incident and print the recognized entities
 for incident in incidents:
     doc = nlp(incident['description'])
     print(f"Incident: {incident['description']}")
-    print([(ent.text, ent.label_) for ent in doc.ents])
+    
+    # Print tokens to verify tokenization
+    print("Tokens:", [token.text for token in doc])
+    
+    # Print the lowercase conversion for each token
+    print("Lowercase tokens:", [token.lower_ for token in doc])
+    
+    # Print entities recognized
+    print("Entities found:", [(ent.text, ent.label_) for ent in doc.ents])
 
 # Main entry point for running the app
 if __name__ == '__main__':

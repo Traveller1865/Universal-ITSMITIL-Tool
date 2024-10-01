@@ -1,14 +1,16 @@
 [
-    {"label": "TECH_ISSUE", "pattern": "Wi-Fi"},
     {"label": "TECH_ISSUE", "pattern": "server"},
-    {"label": "TECH_ISSUE", "pattern": "email outage"},
-    {"label": "TECH_ISSUE", "pattern": "printer failure"},
-    {"label": "TECH_ISSUE", "pattern": "network down"},
-    {"label": "SERVICE_REQUEST", "pattern": "password reset"},
-    {"label": "SERVICE_REQUEST", "pattern": "new account creation"},
-    {"label": "SERVICE_REQUEST", "pattern": "software installation"},
-    {"label": "SERVICE_REQUEST", "pattern": "hardware upgrade"},
-    {"label": "USER_PROBLEM", "pattern": "login issue"},
-    {"label": "USER_PROBLEM", "pattern": "account locked"},
-    {"label": "USER_PROBLEM", "pattern": "cannot access files"}
+    {"label": "TECH_ISSUE", "pattern": [{"LOWER": "wi"}, {"IS_PUNCT": true}, {"LOWER": "fi"}]},  
+    {"label": "TECH_ISSUE", "pattern": [{"LOWER": "wifi"}]},  
+    {"label": "TECH_ISSUE", "pattern": [{"LOWER": "server"}]},
+    {"label": "TECH_ISSUE", "pattern": [{"LOWER": "email"}, {"LOWER": "outage"}]},
+    {"label": "TECH_ISSUE", "pattern": [{"LOWER": "printer"}, {"LOWER": "failure"}]},
+    {"label": "TECH_ISSUE", "pattern": [{"LOWER": "network"}, {"LOWER": "down"}]},
+    {"label": "SERVICE_REQUEST", "pattern": [{"LOWER": "password"}, {"LOWER": "reset"}]},  
+    {"label": "SERVICE_REQUEST", "pattern": [{"LOWER": "new"}, {"LOWER": "account"}, {"LOWER": "creation"}]},
+    {"label": "SERVICE_REQUEST", "pattern": [{"LOWER": "software"}, {"LOWER": "installation"}]},
+    {"label": "SERVICE_REQUEST", "pattern": [{"LOWER": "hardware"}, {"LOWER": "upgrade"}]},
+    {"label": "USER_PROBLEM", "pattern": [{"LOWER": "login"}, {"LOWER": "issue"}]},
+    {"label": "USER_PROBLEM", "pattern": [{"LOWER": "account"}, {"LOWER": "locked"}]},
+    {"label": "USER_PROBLEM", "pattern": [{"LOWER": "cannot"}, {"LOWER": "access"}, {"LOWER": "files"}]}
 ]
