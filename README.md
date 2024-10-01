@@ -113,3 +113,76 @@ Phase 1: Core Development**
 **Phase 3: Finalization & Presentation (1 Month)**
 - Polish the MVP for a seamless UX and full functionality.
 - Prepare a demo for review by university CIO or IT leadership.
+
+
+
+**Dashboard Overview**
+
+The **Dashboard** provides real-time visualization and monitoring of the ITSM platform’s key components, including incidents, service requests, and SLA performance. It integrates AI-driven insights to enhance the user experience.
+
+**Key Features**
+
+1) **Incident Overview:**
+   - Displays real-time incidents categorized by severity and service type.
+   - Key metrics include incident age and current status (Open, In Progress, Resolved).
+
+   **User Flow:**
+   - Users can view a summary of open incidents, filtered by severity.
+   - Clicking on an incident will open a detailed view, showing its history and associated comments.
+
+2) **Service Request Status:**
+   - Visual representation of pending vs. resolved service requests.
+   
+   **User Flow:**
+   - Requests are displayed in a list with key details like requestor, priority, and status.
+   - Users can filter by request type or search for a specific request.
+
+3) **SLA Monitoring:**
+   - Displays incidents that are nearing SLA breaches or have already breached.
+   - Uses color-coded indicators to highlight SLA performance.
+
+   **User Flow:**
+   - The SLA section will show a graph or list of incidents with SLA deadlines.
+   - Users can click to view detailed SLA information, including how much time is left before a breach.
+
+4) **AI Insights (NLP-Driven):**
+   - Real-time insights from AI on incident trends and common issues.
+   - Top incident categories and recurring keywords based on NLP pattern recognition.
+
+   **User Flow:**
+   - Users will see a word cloud or graph showing the most common incident categories.
+   - Clicking on a category will filter the incidents view to show only incidents of that type.
+
+**Additional Features**
+
+5) **User Dashboard:**
+   - Personalized view for different roles (Admin, Manager, Service Desk Agent).
+   
+   **User Flow:**
+   - The dashboard dynamically adjusts based on the user's role.
+   - Admins see everything; service desk agents see only their assigned incidents and requests.
+
+6) **Incident Filtering & Search:**
+   - Allows users to filter incidents and service requests by status, severity, service, and more.
+   
+   **User Flow:**
+   - Users can apply filters to narrow down the list of incidents or service requests.
+   - A search bar enables quick access to specific incidents based on keywords or descriptions.
+
+7) **Summary Statistics:**
+   - Displays KPIs, such as the number of open incidents, resolved requests, average resolution time, and breached SLAs.
+   
+   **User Flow:**
+   - Users see the summary statistics at the top of the dashboard.
+   - Clicking on a KPI (e.g., "Open Incidents") will filter the incidents view accordingly.
+
+8) **Recent Activity Feed:**
+   - Shows a real-time feed of incidents that were recently updated or closed.
+   
+   **User Flow:**
+   - Users can see the most recent updates and click to view more details.
+
+**Future Enhancements**
+- Integration of advanced AI-driven insights for predictive problem management.
+- Additional SLA monitoring features, including real-time alerts and historical SLA performance tracking.
+- Improved search and reporting capabilities.

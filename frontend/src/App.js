@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import Login from './components/Login';
 import IncidentForm from './components/IncidentForm';
 import IncidentList from './components/IncidentList';
-import './App.css';
+import ServiceRequestStatus from './components/ServiceRequestStatus';
+import SLAMonitoring from './components/SLAMonitoring';
+import './Styles/App.css';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -27,6 +29,8 @@ function App() {
                   <button onClick={handleLogout}>Logout</button>
                   <IncidentForm />
                   <IncidentList />
+                  <ServiceRequestStatus />
+                  <SLAMonitoring />
               </>
           )}
       </div>

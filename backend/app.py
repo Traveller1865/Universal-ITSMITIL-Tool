@@ -9,42 +9,39 @@ from datetime import datetime, timedelta, timezone
 import spacy
 from custom_entity_ruler import add_entity_ruler
 from nlp_categories import categorize_incident
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for cross-origin requests
+
+# Setup CORS
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}},
+     supports_credentials=True,  
+     allow_headers=["Content-Type", "Authorization"],  
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
 
 # JWT setup: load secret key from environment variables
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')  # Ensure this is set in your .env
 jwt = JWTManager(app)
 
-app.config['SECRET_KEY'] = os.getenv('Flask_SECRET_KEY')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Ensure this is set in your .env
 
 # Get the database URL from the environment variable
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')  # Ensure this is set in your .env
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Load language model and add the custom entity ruler
 nlp = spacy.load("en_core_web_sm")
-
-# Debugging: Check if entity ruler is correctly added
-print("Adding custom entity ruler to pipeline...")
-
-# Ensure the custom entity ruler is added
+logging.info("Adding custom entity ruler to pipeline...")
 nlp = add_entity_ruler(nlp)
-
-# Confirm the pipeline components after adding the custom entity ruler
-print("Pipeline components after adding custom entity ruler:", nlp.pipe_names)
-
-# Example incidents for testing
-incidents = [
-    {"description": "Wi-Fi is down across campus."},
-    {"description": "Server is overloaded in the data center."},
-    {"description": "Password reset needed for student account."}
-]
+logging.info("Pipeline components after adding custom entity ruler: %s", nlp.pipe_names)
 
 # Sample users with roles (to be updated with DB later)
 users = {
@@ -57,6 +54,15 @@ users = {
     "external": {"password": "external123", "roles": ["guest", "external"]},
 }
 
+# Helper function for token expiration based on role
+def get_token_expiration(role):
+    if "admin" in role:
+        return timedelta(days=7)
+    elif "guest" in role:
+        return timedelta(days=1)
+    else:
+        return timedelta(hours=36)  # Other non-admin staff
+
 # Create user login endpoint
 @app.route('/login', methods=['POST'])
 def login():
@@ -68,14 +74,7 @@ def login():
         return jsonify({"msg": "Invalid username or password"}), 401
 
     role = users[username]["roles"]
-    
-    # Set different token expiry times based on roles
-    if "admin" in role:
-        expires = timedelta(days=7)
-    elif "guest" in role:
-        expires = timedelta(days=1)
-    else:
-        expires = timedelta(hours=36)  # Other non-admin staff
+    expires = get_token_expiration(role)
 
     # Generate token with roles
     access_token = create_access_token(identity={"username": username, "roles": role}, expires_delta=expires)
@@ -142,15 +141,14 @@ class Incident(db.Model):
     description = db.Column(db.String(500), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     priority = db.Column(db.String(10), nullable=False)  # P1, P2, P3, P4
-    submitted_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    submitted_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))  
     acknowledged_at = db.Column(db.DateTime, nullable=True)
     resolved_at = db.Column(db.DateTime, nullable=True)
-    escalation_level = db.Column(db.String(50), nullable=True)  # Optional escalation level
-    escalated_at = db.Column(db.DateTime, nullable=True)  # Timestamp for escalation
-    is_sla_breached = db.Column(db.Boolean, default=False)  # Track SLA breach
-    breached_at = db.Column(db.DateTime, nullable=True)  # Timestamp for SLA breach
-
-    # Get SLA times based on priority
+    escalation_level = db.Column(db.String(50), nullable=True)  
+    escalated_at = db.Column(db.DateTime, nullable=True)  
+    is_sla_breached = db.Column(db.Boolean, default=False)  
+    breached_at = db.Column(db.DateTime, nullable=True)  
+    
     def get_sla_times(self):
         priority_slas = {
             "P1": {"acknowledgment": 15, "resolution": 240},
@@ -160,17 +158,30 @@ class Incident(db.Model):
         }
         return priority_slas.get(self.priority, {"acknowledgment": 60, "resolution": 1440})
 
-    # Check if nearing acknowledgment SLA
+    def calculate_time_remaining(self):
+        sla_times = self.get_sla_times()
+        if not self.submitted_at:
+            return None
+        
+        resolution_deadline = self.submitted_at.replace(tzinfo=timezone.utc) + timedelta(minutes=sla_times["resolution"])
+        remaining_time = resolution_deadline - datetime.now(timezone.utc)
+        
+        if remaining_time.total_seconds() > 0:
+            return str(remaining_time)  # Format the timedelta as a string, or use a custom format
+        else:
+            return "Already Breached"
+
     def is_nearing_acknowledgment_sla(self):
         sla_times = self.get_sla_times()
-        acknowledgment_deadline = self.submitted_at + timedelta(minutes=sla_times["acknowledgment"])
-        return datetime.now(timezone.utc) > acknowledgment_deadline - timedelta(minutes=10)  # 10 min warning
+        # Ensure submitted_at is timezone-aware before comparing
+        acknowledgment_deadline = self.submitted_at.replace(tzinfo=timezone.utc) + timedelta(minutes=sla_times["acknowledgment"])
+        return datetime.now(timezone.utc) > acknowledgment_deadline - timedelta(minutes=10) 
 
-    # Check if nearing resolution SLA
     def is_nearing_resolution_sla(self):
         sla_times = self.get_sla_times()
-        resolution_deadline = self.submitted_at + timedelta(minutes=sla_times["resolution"])
-        return datetime.now(timezone.utc) > resolution_deadline - timedelta(minutes=30)  # 30 min warning
+        # Ensure submitted_at is timezone-aware before comparing
+        resolution_deadline = self.submitted_at.replace(tzinfo=timezone.utc) + timedelta(minutes=sla_times["resolution"])
+        return datetime.now(timezone.utc) > resolution_deadline - timedelta(minutes=30) 
 
 # Acknowledge Incident (for Support Engineers)
 @app.route('/api/incident/<int:incident_id>/acknowledge', methods=['PUT'])
@@ -181,7 +192,7 @@ def acknowledge_incident(incident_id):
     if incident.acknowledged_at is not None:
         return jsonify({"msg": "Incident already acknowledged"}), 400
     
-    incident.acknowledged_at = datetime.utcnow()
+    incident.acknowledged_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify({"msg": "Incident acknowledged", "incident_id": incident_id}), 200
 
@@ -194,7 +205,7 @@ def resolve_incident(incident_id):
     if incident.resolved_at is not None:
         return jsonify({"msg": "Incident already resolved"}), 400
 
-    incident.resolved_at = datetime.utcnow()
+    incident.resolved_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify({"msg": "Incident resolved", "incident_id": incident_id}), 200
 
@@ -207,63 +218,59 @@ with app.app_context():
 @jwt_required()
 def submit_incident():
     data = request.json
-    new_incident = Incident(
-        name=data['name'],
-        email=data['email'],
-        description=data['description'],
-        category=data['category'],
-        priority=data['priority'],
-        submitted_at=datetime.now(timezone.utc)
-    )
-    db.session.add(new_incident)
-    db.session.commit()
-    return jsonify({"message": "Incident submitted successfully!", "data": data}), 200
+    try:
+        new_incident = Incident(
+            name=data['name'],
+            email=data['email'],
+            description=data['description'],
+            category=data['category'],
+            priority=data['priority'],
+            submitted_at=datetime.now(timezone.utc)
+        )
+        db.session.add(new_incident)
+        db.session.commit()
+        return jsonify({"message": "Incident submitted successfully!", "data": data}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # Endpoint to retrieve all incidents (JWT required)
 @app.route('/api/incidents', methods=['GET'])
 @jwt_required()
 def get_incidents():
-    query = Incident.query
-    name = request.args.get('name')
-    category = request.args.get('category')
+    try:
+        query = Incident.query
+        name = request.args.get('name')
+        category = request.args.get('category')
 
-    if name:
-        query = query.filter(Incident.name.ilike(f'%{name}%'))
+        if name:
+            query = query.filter(Incident.name.ilike(f'%{name}%'))
 
-    if category:
-        query = query.filter_by(category=category)
+        if category:
+            query = query.filter_by(category=category)
 
-    incidents = query.all()
-    result = [
-        {
-            "id": incident.id,
-            "name": incident.name,
-            "email": incident.email,
-            "description": incident.description,
-            "category": incident.category,
-            "priority": incident.priority,
-            "submitted_at": incident.submitted_at,
-            "acknowledged_at": incident.acknowledged_at,
-            "resolved_at": incident.resolved_at
-        } for incident in incidents
-    ]
-    return jsonify(result), 200
-
-# Middleware to handle incident text processing before saving
-@app.before_request
-def process_incident_middleware():
-    if request.path == '/api/incidents/new' and request.method == 'POST':
-        description = request.json.get('description')
-        if description:
-            # Process with SpaCy
-            doc = nlp(description)
-            request.entities = [(ent.text, ent.label_) for ent in doc.ents]
-
+        incidents = query.all()
+        result = [
+            {
+                "id": incident.id,
+                "name": incident.name,
+                "email": incident.email,
+                "description": incident.description,
+                "category": incident.category,
+                "priority": incident.priority,
+                "submitted_at": incident.submitted_at,
+                "acknowledged_at": incident.acknowledged_at,
+                "resolved_at": incident.resolved_at
+            } for incident in incidents
+        ]
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Use SpaCy to process and categorize the incident description
 @app.route('/api/incidents/new', methods=['POST'])
 @jwt_required()
-@role_required(['service_desk_agent', 'support_engineer', 'admin'])  # Restrict access
+@role_required(['service_desk_agent', 'support_engineer', 'admin'])  
 def submit_new_incident():
     data = request.get_json()
     description = data.get("description")
@@ -274,77 +281,112 @@ def submit_new_incident():
     # Use the categorize_incident function from nlp_categories.py
     category, entities = categorize_incident(description)
     
-    # Create new incident with processed details
-    new_incident = Incident(
-        name=name,
-        email=email,
-        description=description,
-        category=category,
-        priority=priority,
-        submitted_at=datetime.now(timezone.utc)
-    )
-    db.session.add(new_incident)
-    db.session.commit()
-    
-    return jsonify({
-        "message": "Incident submitted successfully",
-        "category": category,
-        "entities": entities
-    }), 200
-
+    try:
+        new_incident = Incident(
+            name=name,
+            email=email,
+            description=description,
+            category=category,
+            priority=priority,
+            submitted_at=datetime.now(timezone.utc)
+        )
+        db.session.add(new_incident)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Incident submitted successfully",
+            "category": category,
+            "entities": entities
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # SLA monitoring endpoint
 @app.route('/api/incidents/sla-monitor', methods=['GET'])
 @jwt_required()
 def monitor_slas():
-    incidents = Incident.query.all()
-    sla_violations = []
+    try:
+        logging.info("Start SLA monitoring")
+        incidents = Incident.query.all()
+        sla_violations = []
 
-    for incident in incidents:
-        nearing_ack = incident.is_nearing_acknowledgment_sla()
-        nearing_res = incident.is_nearing_resolution_sla()
-
-        # Check if the incident has breached the SLA
-        if not incident.is_sla_breached and nearing_res:
-            incident.is_sla_breached = True
-            incident.breached_at = datetime.now(timezone.utc)
-            db.session.commit()
-
-        if nearing_ack or nearing_res:
-            sla_violations.append({
-                "id": incident.id,
-                "name": incident.name,
-                "priority": incident.priority,
-                "submitted_at": incident.submitted_at,
-                "nearing_acknowledgment": nearing_ack,
-                "nearing_resolution": nearing_res,
-                "is_sla_breached": incident.is_sla_breached,
-                "breached_at": incident.breached_at,
-            })
-
-    return jsonify(sla_violations), 200
-
-# Create mock incidents for testing SpaCy NLP integration
-incidents = [
-    {"description": "The server is down."},  # Single-word pattern test
-    {"description": "Wi-Fi is down across campus."}, # Multi-word pattern test
-    {"description": "Server is overloaded in the data center."},  # Multi-word pattern test
-    {"description": "Password reset needed for student account."}  # Multi-word pattern test
-]
-
-# Process each incident and print the recognized entities
-for incident in incidents:
-    doc = nlp(incident['description'])
-    print(f"Incident: {incident['description']}")
+        for incident in incidents:
+            try:
+                nearing_ack = incident.is_nearing_acknowledgment_sla()
+                nearing_res = incident.is_nearing_resolution_sla()
+                logging.info(f"Checking SLA for incident {incident.id}, nearing_ack: {nearing_ack}, nearing_res: {nearing_res}")
+                if nearing_ack or nearing_res:
+                    sla_violations.append({
+                        "id": incident.id,
+                        "name": incident.name,
+                        "priority": incident.priority,
+                        "submitted_at": incident.submitted_at.isoformat() if incident.submitted_at else None,
+                        "nearing_acknowledgment": nearing_ack,
+                        "nearing_resolution": nearing_res,
+                        "is_sla_breached": incident.is_sla_breached,
+                        "breached_at": incident.breached_at.isoformat() if incident.breached_at else None,
+                        "time_remaining": incident.calculate_time_remaining()  # Add time remaining
+                    })
+            except Exception as incident_error:
+                logging.error(f"Error processing incident {incident.id}: {incident_error}")
+        logging.info(f"SLA Violations: {sla_violations}")
+        return jsonify(sla_violations), 200
+    except Exception as e:
+        logging.error(f"Error in SLA monitoring: {str(e)}")
+        return jsonify({"error": str(e)}), 500
     
-    # Print tokens to verify tokenization
-    print("Tokens:", [token.text for token in doc])
-    
-    # Print the lowercase conversion for each token
-    print("Lowercase tokens:", [token.lower_ for token in doc])
-    
-    # Print entities recognized
-    print("Entities found:", [(ent.text, ent.label_) for ent in doc.ents])
+# Define the ServiceRequest model
+class ServiceRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    request_type = db.Column(db.String(50), nullable=False)
+    requestor = db.Column(db.String(120), nullable=False)
+    status = db.Column(db.String(50), nullable=False)  
+    submitted_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+# Create the database table for service requests
+with app.app_context():
+    db.create_all()
+
+# Endpoint to handle service requests retrieval (GET)
+@app.route('/api/service-requests', methods=['GET'])
+@jwt_required()
+def get_service_requests():
+    try:
+        service_requests = ServiceRequest.query.all()
+        result = [
+            {
+                "id": request.id,
+                "type": request.request_type,
+                "requestor": request.requestor,
+                "status": request.status,
+                "submitted_at": request.submitted_at,
+                "resolved_at": request.resolved_at
+            } for request in service_requests
+        ]
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Endpoint to submit a new service request (POST)
+@app.route('/api/service-requests', methods=['POST'])
+@jwt_required()
+def submit_service_request():
+    data = request.json
+    try:
+        new_request = ServiceRequest(
+            request_type=data['type'],
+            requestor=data['requestor'],
+            status=data['status'],  
+            submitted_at=datetime.now(timezone.utc)
+        )
+        db.session.add(new_request)
+        db.session.commit()
+        return jsonify({"message": "Service request submitted successfully!", "data": data}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # Main entry point for running the app
 if __name__ == '__main__':

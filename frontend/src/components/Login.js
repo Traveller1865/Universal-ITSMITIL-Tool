@@ -48,6 +48,8 @@ const Login = ({ setToken }) => {
                     <label htmlFor="stay-signed-in">Stay signed in</label>
                 </div>
                 <button type="submit">Sign In</button>
+                {/* Display error message */}
+                {error && <div className="error-message">{error}</div>}
             </form>
         </div>
     );
